@@ -1,5 +1,5 @@
 '''
-this is a direct copy from the original pointnet respository
+this is a direct copy from the original pointnet repository
 '''
 import os
 import sys
