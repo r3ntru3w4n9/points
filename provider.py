@@ -1,3 +1,6 @@
+'''
+this is a direct copy from the original pointnet respository
+'''
 import os
 import sys
 import numpy as np
