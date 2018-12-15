@@ -38,6 +38,15 @@ def main(epochs=300,
     class_label = K.placeholder()
     real_label = K.placeholder()
 
+    '''
+    This is simply a work-around, 
+    I'm on a legacy system with Keras=2.0.2, tensorflow=1.2.0
+    Feel free to simply use the classifier and combined model to train the acgan model
+    
+    Note that if you're going to use the Model API to train,
+    you have to use .train_on_batch instead of .fit
+    '''
+
     classifier_training_fn = K.function(
         inputs=[class_label, real_label]+classifier.inputs, outputs=[],
         updates=Doptim.get_updates(
@@ -78,6 +87,11 @@ def main(epochs=300,
     )
     generator_fn = K.function(inputs=generator.inputs,
                               outputs=generator.outputs)
+
+    '''
+    Arr... I hate legacy systems
+    '''
+
     train_file_num = np.arange(len(train_files))
 
     for epoch in range(1, epochs+1):
@@ -119,9 +133,9 @@ def main(epochs=300,
                 trick = np.expand_dims(.95*np.ones(batch_size), -1)
 
                 combined_training_fn([trick, rdn_cls, noise, rdn_cls])
-        classifier.save(filepath=os.path.join('weights','classifier'))
-        generator.save(filepath=os.path.join('weights','generator'))
-        combined.save(filepath=os.path.join('weights','combined'))
+        classifier.save(filepath=os.path.join('weights', 'classifier'))
+        generator.save(filepath=os.path.join('weights', 'generator'))
+        combined.save(filepath=os.path.join('weights', 'combined'))
         print('took {} seconds'.format(time.time()-tm))
 
 
