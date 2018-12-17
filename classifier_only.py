@@ -43,17 +43,17 @@ def main(epochs=300,
         monitor='val_acc', patience=10)
 
     loss = classifier.fit(x=data,
-                             y=label,
-                             batch_size=batch_size,
-                             epochs=epochs,
-                             callbacks=[ModelCheckPoint,
-                                        TensorBoard,
-                                        EarlyStopping],
-                             validation_data=(test_data, test_label))
-    
+                          y=label,
+                          batch_size=batch_size,
+                          epochs=epochs,
+                          callbacks=[ModelCheckPoint,
+                                     TensorBoard,
+                                     EarlyStopping],
+                          validation_data=(test_data, test_label))
+
     plt.gcf().clear()
     for item in loss.history.keys():
-        plt.plot(loss.history[item],label=item)
+        plt.plot(loss.history[item], label=item)
     plt.legend()
     plt.savefig('./loss_metrics.jpg')
 
