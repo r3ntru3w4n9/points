@@ -40,9 +40,9 @@ if __name__ == "__main__":
     test_files = provider.getDataFiles(args.test_files)
 
     (data, label), (test_data, test_label) = loader.load_data(
-        train_files, test_files)
+        train_files, test_files, args.points)
 
-    model, _ = models.Classifier(points=args.num_points)
+    model, _ = models.Classifier(points=args.points)
 
     classifier = Model(inputs=model.inputs,
                        outputs=[model.outputs[0]])
