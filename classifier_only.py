@@ -42,7 +42,7 @@ if __name__ == "__main__":
     (data, label), (test_data, test_label) = loader.load_data(
         train_files, test_files)
 
-    model, _ = models.Classifier(points=args.num_points)
+    model, _ = models.Classifier(points=args.points)
 
     classifier = Model(inputs=model.inputs,
                        outputs=[model.outputs[0]])
