@@ -13,7 +13,6 @@ import loader
 import models
 import provider
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--epochs', type=int, default=300,
@@ -74,7 +73,6 @@ if __name__ == "__main__":
         np.save(file='./history', arr=loss.history)
 
     if args.plot:
-        plt.gcf().clear()
         for item in loss.history.keys():
             plt.plot(loss.history[item], label=item)
         plt.legend()
