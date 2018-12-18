@@ -28,8 +28,10 @@ if __name__ == "__main__":
                         default='./data/modelnet40_ply_hdf5_2048/train_files.txt')
     parser.add_argument('--test_files',
                         default='./data/modelnet40_ply_hdf5_2048/test_files.txt')
-    parser.add_argument('--plot', type=bool, default=True,
+    parser.add_argument('--plot', type=bool, default=False,
                         help='save training history')
+    parser.add_argument('--save_history', type=bool, default=False,
+                        help='save history dictionary')
 
     args = parser.parse_args()
 
@@ -67,6 +69,10 @@ if __name__ == "__main__":
                                      TensorBoard,
                                      EarlyStopping],
                           validation_data=(test_data, test_label))
+
+    if args.save_history:
+        np.save(file='./history', arr=loss.history)
+
     if args.plot:
         plt.gcf().clear()
         for item in loss.history.keys():
