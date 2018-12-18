@@ -69,7 +69,7 @@ if __name__ == "__main__":
         (data, label), (test_data, test_label) = loader.load_data(
             train_files, test_files, args.points, rotate=True, rotate_val=True)
         for epoch in range(1, args.epochs+1):
-            print('epoch: {}/{}'.format(epoch, args.epochs))
+            print('epoch: {}/{}'.format(epoch, args.epochs, args.per_rotation))
             classifier.fit(x=data,
                            y=label,
                            batch_size=args.batch_size,
