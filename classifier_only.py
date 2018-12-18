@@ -15,7 +15,7 @@ import provider
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--epochs', type=int, default=300,
+    parser.add_argument('epochs', type=int, default=300,
                         help='number of epochs, default=300')
     parser.add_argument('--points', type=int, default=1024,
                         help='number of points per sample, default=1024')
@@ -31,6 +31,11 @@ if __name__ == "__main__":
                         help='save training history')
     parser.add_argument('--save_history', type=bool, default=False,
                         help='save history dictionary')
+    rotation = parser.add_argument_group('rotation')
+    rotation.add_argument('--rotate', type=bool, default=False,
+                          help='apply rotation to data')
+    rotation.add_argument('--per_rotation', type=int, default=5,
+                          help='how many epochs per rotation')
 
     args = parser.parse_args()
 
@@ -60,14 +65,25 @@ if __name__ == "__main__":
     EarlyStopping = keras.callbacks.EarlyStopping(
         monitor='val_acc', patience=10)
 
-    loss = classifier.fit(x=data,
-                          y=label,
-                          batch_size=args.batch_size,
-                          epochs=args.epochs,
-                          callbacks=[ModelCheckPoint,
-                                     TensorBoard,
-                                     EarlyStopping],
-                          validation_data=(test_data, test_label))
+    if args.rotate:
+        (data, label), (test_data, test_label) = loader.load_data(
+            train_files, test_files, args.points, rotate=True, rotate_val=True)
+        for epoch in range(1, args.epochs+1):
+            print('epoch: {}/{}'.format(epoch, args.epochs))
+            classifier.fit(x=data,
+                           y=label,
+                           batch_size=args.batch_size,
+                           epochs=args.per_rotation,
+                           validation_data=(test_data, test_label))
+    else:
+        loss = classifier.fit(x=data,
+                              y=label,
+                              batch_size=args.batch_size,
+                              epochs=args.epochs,
+                              callbacks=[ModelCheckPoint,
+                                         TensorBoard,
+                                         EarlyStopping],
+                              validation_data=(test_data, test_label))
 
     if args.save_history:
         np.save(file='./history', arr=loss.history)
@@ -79,4 +95,3 @@ if __name__ == "__main__":
         plt.savefig('./loss_metrics.jpg')
 
     K.clear_session()
-
