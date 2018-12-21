@@ -55,8 +55,8 @@ def load_data(train_files,
 
     if rotate:
         data = rotate_point_cloud(data)
-        if rotate_val:
-            test_data = rotate_point_cloud(test_data)
+    if rotate_val:
+        test_data = rotate_point_cloud(test_data)
 
     return (data, label), (test_data, test_label)
 

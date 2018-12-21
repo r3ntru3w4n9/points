@@ -34,6 +34,8 @@ if __name__ == "__main__":
     rotation = parser.add_argument_group('rotation')
     rotation.add_argument('--rotate', type=bool, default=False,
                           help='apply rotation to data')
+    rotation.add_argument('--rotate_val', type=bool, default=False,
+                          help='apply rotation to validation data')
     rotation.add_argument('--per_rotation', type=int, default=5,
                           help='how many epochs per rotation')
 
@@ -46,7 +48,11 @@ if __name__ == "__main__":
     test_files = provider.getDataFiles(args.test_files)
 
     (data, label), (test_data, test_label) = loader.load_data(
-        train_files, test_files, args.points)
+        train_files, test_files,
+        num_points=args.points,
+        shuffle=False,
+        rotate=args.rotate,
+        rotate_val=args.rotate_val)
 
     model, _ = models.Classifier(points=args.points)
 
@@ -65,11 +71,15 @@ if __name__ == "__main__":
     EarlyStopping = keras.callbacks.EarlyStopping(
         monitor='val_acc', patience=10)
 
-    if args.rotate:
-        (data, label), (test_data, test_label) = loader.load_data(
-            train_files, test_files, args.points, rotate=True, rotate_val=True)
+    if args.rotate or args.rotate_val:
         for epoch in range(1, args.epochs+1, args.per_rotation):
             print('epoch: {}/{}'.format(epoch, args.epochs))
+            (data, label), (test_data, test_label) = loader.load_data(
+                train_files,
+                test_files,
+                args.points,
+                rotate=args.rotate,
+                rotate_val=args.rotate_val)
             classifier.fit(x=data,
                            y=label,
                            batch_size=args.batch_size,
@@ -93,5 +103,12 @@ if __name__ == "__main__":
             plt.plot(loss.history[item], label=item)
         plt.legend()
         plt.savefig('./loss_metrics.jpg')
+
+    # on original data
+    (x_train, y_train), (x_test, y_test) = loader.load_data(train_files, test_files)
+    (loss, acc) = model.evaluate(x=x_train, y=y_train)
+    print('training loss: {}, training accuracy: {}'.format(loss, acc))
+    (loss, acc) = model.evaluate(x=x_test, y=y_test)
+    print('training loss: {}, training accuracy: {}'.format(loss, acc))
 
     K.clear_session()
