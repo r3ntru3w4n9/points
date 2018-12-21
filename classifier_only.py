@@ -62,6 +62,8 @@ if __name__ == "__main__":
     classifier.compile(optimizer='adam', loss=[
                        'sparse_categorical_crossentropy'], metrics=['accuracy'])
 
+    del model
+
     ModelCheckPoint = keras.callbacks.ModelCheckpoint(
         filepath=os.path.join('weights', 'best.{epoch:03d}.hdf5'),
         save_best_only=True)
@@ -71,15 +73,24 @@ if __name__ == "__main__":
     EarlyStopping = keras.callbacks.EarlyStopping(
         monitor='val_acc', patience=10)
 
-    if args.rotate or args.rotate_val:
+    if args.rotate:
         for epoch in range(1, args.epochs+1, args.per_rotation):
-            print('epoch: {}/{}'.format(epoch, args.epochs))
             (data, label), (test_data, test_label) = loader.load_data(
                 train_files,
                 test_files,
                 args.points,
                 rotate=args.rotate,
                 rotate_val=args.rotate_val)
+            print('epoch: {}/{}'.format(epoch, args.epochs))
+            classifier.fit(x=data,
+                           y=label,
+                           batch_size=args.batch_size,
+                           epochs=args.per_rotation,
+                           validation_data=(test_data, test_label))
+    elif args.rotate_val:
+        for epoch in range(1, args.epochs+1):
+            (x_test, y_test) = loader.rotate_data(test_files)
+            print('epoch: {}/{}'.format(epoch, args.epochs))
             classifier.fit(x=data,
                            y=label,
                            batch_size=args.batch_size,
@@ -105,10 +116,11 @@ if __name__ == "__main__":
         plt.savefig('./loss_metrics.jpg')
 
     # on original data
-    (x_train, y_train), (x_test, y_test) = loader.load_data(train_files, test_files)
-    (loss, acc) = model.evaluate(x=x_train, y=y_train)
+    (x_train, y_train), (x_test, y_test) = loader.load_data(
+        train_files, test_files, args.points)
+    (loss, acc) = classifier.evaluate(x=x_train, y=y_train)
     print('training loss: {}, training accuracy: {}'.format(loss, acc))
-    (loss, acc) = model.evaluate(x=x_test, y=y_test)
+    (loss, acc) = classifier.evaluate(x=x_test, y=y_test)
     print('training loss: {}, training accuracy: {}'.format(loss, acc))
 
     K.clear_session()

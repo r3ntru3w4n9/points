@@ -61,6 +61,31 @@ def load_data(train_files,
     return (data, label), (test_data, test_label)
 
 
+def rotate_data(files,
+                num_points=1024,
+                rotate=False):
+
+    data = []
+    label = []
+
+    file_num = np.arange(len(files))
+
+    for file_num in file_num:
+        current_data, current_label = provider.loadDataFile(files[file_num])
+        current_data = current_data[:, :num_points, :]
+
+        data.append(current_data)
+        label.append(current_label)
+
+    data = np.concatenate(data, axis=0)
+    label = np.concatenate(label, axis=0)
+
+    if rotate:
+        data = rotate_point_cloud(data)
+
+    return (data, label)
+
+
 def rotate_point_cloud(batch_data):
     """ Randomly rotate the point clouds to augument the dataset
         rotation is per shape based about z-axis
