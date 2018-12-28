@@ -27,14 +27,14 @@ if __name__ == "__main__":
                         default='./data/modelnet40_ply_hdf5_2048/train_files.txt')
     parser.add_argument('--test_files',
                         default='./data/modelnet40_ply_hdf5_2048/test_files.txt')
-    parser.add_argument('--plot', type=bool, default=False,
+    parser.add_argument('--plot', action='store_true',
                         help='save training history')
-    parser.add_argument('--save_history', type=bool, default=False,
+    parser.add_argument('--save_history', action='store_true',
                         help='save history dictionary')
     rotation = parser.add_argument_group('rotation')
-    rotation.add_argument('--rotate', type=bool, default=False,
+    rotation.add_argument('--rotate', action='store_true',
                           help='apply rotation to data')
-    rotation.add_argument('--rotate_val', type=bool, default=False,
+    rotation.add_argument('--rotate_val', action='store_true',
                           help='apply rotation to validation data')
     rotation.add_argument('--per_rotation', type=int, default=5,
                           help='how many epochs per rotation')
@@ -43,7 +43,6 @@ if __name__ == "__main__":
 
     if not os.path.exists('weights'):
         os.makedirs('weights')
-
 
     (data, label), (test_data, test_label) = loader.load_data(
         args.train_files, args.test_files,
@@ -74,8 +73,8 @@ if __name__ == "__main__":
     if args.rotate:
         for epoch in range(1, args.epochs+1, args.per_rotation):
             (data, label), (test_data, test_label) = loader.load_data(
-                train_files,
-                test_files,
+                args.train_files,
+                args.test_files,
                 args.points,
                 rotate=args.rotate,
                 rotate_val=args.rotate_val)
@@ -87,7 +86,7 @@ if __name__ == "__main__":
                            validation_data=(test_data, test_label))
     elif args.rotate_val:
         for epoch in range(1, args.epochs+1):
-            (x_test, y_test) = loader.rotate_data(test_files)
+            (x_test, y_test) = loader.rotate_data(args.test_files)
             print('epoch: {}/{}'.format(epoch, args.epochs))
             classifier.fit(x=data,
                            y=label,
@@ -115,10 +114,11 @@ if __name__ == "__main__":
 
     # on original data
     (x_train, y_train), (x_test, y_test) = loader.load_data(
-        train_files, test_files, args.points)
+        args.train_files, args.test_files, args.points)
     (loss, acc) = classifier.evaluate(x=x_train, y=y_train)
+    print()
     print('training loss: {}, training accuracy: {}'.format(loss, acc))
     (loss, acc) = classifier.evaluate(x=x_test, y=y_test)
-    print('training loss: {}, training accuracy: {}'.format(loss, acc))
+    print('testing loss: {}, testing accuracy: {}'.format(loss, acc))
 
     K.clear_session()
