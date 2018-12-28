@@ -44,11 +44,9 @@ if __name__ == "__main__":
     if not os.path.exists('weights'):
         os.makedirs('weights')
 
-    train_files = provider.getDataFiles(args.train_files)
-    test_files = provider.getDataFiles(args.test_files)
 
     (data, label), (test_data, test_label) = loader.load_data(
-        train_files, test_files,
+        args.train_files, args.test_files,
         num_points=args.points,
         shuffle=False,
         rotate=args.rotate,

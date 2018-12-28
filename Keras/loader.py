@@ -5,21 +5,19 @@ import numpy as np
 import provider
 
 
-def load_data(train_files,
-              test_files,
-              num_points=1024,
-              shuffle=False,
-              rotate=False,
-              rotate_val=False):
+def load(files,
+         points=1024,
+         shuffle=False,
+         rotate=False):
     data = []
     label = []
 
-    train_file_num = np.arange(len(train_files))
+    file_num = np.arange(len(files))
 
-    for file_num in train_file_num:
+    for file_num in file_num:
         current_data, current_label = provider.loadDataFile(
-            train_files[file_num])
-        current_data = current_data[:, :num_points, :]
+            files[file_num])
+        current_data = current_data[:, :points, :]
 
         if shuffle:
             current_data, current_label, _ = provider.shuffle_data(
@@ -32,33 +30,28 @@ def load_data(train_files,
     data = np.concatenate(data, axis=0)
     label = np.concatenate(label, axis=0)
 
-    test_data = []
-    test_label = []
-
-    test_file_num = np.arange(len(test_files))
-
-    for file_num in test_file_num:
-        current_data, current_label = provider.loadDataFile(
-            train_files[file_num])
-        current_data = current_data[:, :num_points, :]
-
-        if shuffle:
-            current_data, current_label, _ = provider.shuffle_data(
-                current_data, np.squeeze(current_label))
-            current_label = np.expand_dims(current_label, axis=-1)
-
-        test_data.append(current_data)
-        test_label.append(current_label)
-
-    test_data = np.concatenate(test_data, axis=0)
-    test_label = np.concatenate(test_label, axis=0)
-
     if rotate:
         data = rotate_point_cloud(data)
-    if rotate_val:
-        test_data = rotate_point_cloud(test_data)
 
-    return (data, label), (test_data, test_label)
+    return (data, label)
+
+
+def load_data(train_files,
+              test_files,
+              num_points=1024,
+              shuffle=False,
+              rotate=False,
+              rotate_val=False):
+
+    train_files = provider.getDataFiles(train_files)
+    test_files = provider.getDataFiles(test_files)
+
+    x_train, y_train = load(train_files, points=num_points,
+                            shuffle=shuffle, rotate=rotate)
+    x_test, y_test = load(test_files, points=num_points,
+                          shuffle=shuffle, rotate=rotate_val)
+
+    return (x_train, y_train), (x_test, y_test)
 
 
 def rotate_data(files,
@@ -108,10 +101,55 @@ def rotate_point_cloud(batch_data):
     return rotated_data
 
 
-if __name__ == "__main__":
-    train_files = provider.getDataFiles(
-        './data/modelnet40_ply_hdf5_2048/train_files.txt')
-    test_files = provider.getDataFiles(
-        './data/modelnet40_ply_hdf5_2048/test_files.txt')
+def convert(files,
+            points=1024,
+            rotate=False,
+            epsilon=.1):
 
-    (x_train, y_train), (x_test, y_test) = load_data(train_files, test_files)
+    def convert_to_3d(pointset,
+                      grid_size=20,
+                      epsilon=epsilon):
+        '''
+        Input shape: (points,3)
+        Output shape: (grid,grid,grid)
+        '''
+        pointset -= pointset.min()
+        pointset /= (pointset.max()+epsilon)
+        pointset *= grid_size
+        pointset = np.floor(pointset).astype('int')
+
+        picture = np.zeros(shape=[grid_size]*3)
+
+        for data in pointset:
+            picture[data[0], data[1], data[2]] = 1
+
+        return picture
+
+    data, label = load(files, points=points, shuffle=False, rotate=rotate)
+
+    dpics = []
+
+    for pointset in data:
+        dpics.append(convert_to_3d(pointset))
+
+    dpics = np.array(dpics).astype('float')
+
+    data = np.expand_dims(dpics, -1)
+
+    return (data, label)
+
+
+def convert_data(train_files,
+                 test_files,
+                 num_points=1024,
+                 rotate=False,
+                 rotate_val=False):
+
+    x_train, y_train = convert(train_files,
+                               points=num_points,
+                               rotate=rotate)
+    x_test, y_test = convert(test_files,
+                             points=num_points,
+                             rotate=rotate_val)
+
+    return (x_train, y_train), (x_test, y_test)
