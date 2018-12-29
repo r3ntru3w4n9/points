@@ -49,7 +49,6 @@ args = parser.parse_args()
 
 # setting GPU usage
 config = tf.ConfigProto()
-config.gpu_options.per_process_gpu_memory_fraction = 0.3
 config.gpu_options.visible_device_list = args.cuda
 set_session(tf.Session(config=config))
 
