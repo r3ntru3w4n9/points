@@ -186,6 +186,132 @@ def Classifier(points=1024):
     return model, biases
 
 
+def SeparableClassifier(points=1024):
+    def InputTransformNet(ipts):
+        '''ipts is a keras tensor'''
+        ipt = Input(shape=(points, 3), name='InputTransformNet_Input')
+        expand = Lambda(function=lambda x: K.expand_dims(x, axis=-1))(ipt)
+        net = SeparableConv2D(filters=64,
+                              kernel_size=(1, 3),
+                              activation='relu')(expand)
+        net = SeparableConv2D(filters=128,
+                              kernel_size=(1, 1),
+                              activation='relu')(net)
+        net = SeparableConv2D(filters=1024,
+                              kernel_size=(1, 1),
+                              activation='relu')(net)
+
+        max_pool = MaxPool2D(pool_size=(points, 1))(net)
+
+        net = Flatten()(max_pool)
+        net = Dense(units=512, activation='relu')(net)
+        net = Dense(units=256, activation='relu')(net)
+        net = Dense(units=3*3)(net)
+
+        bias = Input(tensor=K.eye(3, dtype='float32'),
+                     name='InputTransformNet_Bias')
+
+        expand = Lambda(function=lambda x: K.expand_dims(x, axis=0))(bias)
+        expand = Flatten()(expand)
+        # added = Add()([net, expand])
+        added = Lambda(function=lambda t: t[0]+t[1])([net, expand])
+        result = Reshape(target_shape=(
+            3, 3), name='InputTransformNet_Output')(added)
+
+        model = Model(inputs=[ipt, bias], outputs=[result])
+        print('Input transform net:')
+        model.summary()
+        return model([ipts, bias]), bias
+
+    def FeatureTransformNet(ipts):
+        '''ipts is a keras tensor'''
+        ipt = Input(shape=(points, 1, 64), name='FeatureTransformNet_Input')
+        net = SeparableConv2D(filters=64,
+                              kernel_size=(1, 1),
+                              activation='relu')(ipt)
+        net = SeparableConv2D(filters=128,
+                              kernel_size=(1, 1),
+                              activation='relu')(net)
+        net = SeparableConv2D(filters=1024,
+                              kernel_size=(1, 1),
+                              activation='relu')(net)
+
+        max_pool = MaxPool2D(pool_size=(points, 1))(net)
+
+        net = Flatten()(max_pool)
+        net = Dense(units=512, activation='relu')(net)
+        net = Dense(units=256, activation='relu')(net)
+        net = Dense(units=64*64)(net)
+
+        bias = Input(tensor=K.eye(64, dtype='float32'),
+                     name='FeatureTransformNet_Bias')
+
+        expand = Lambda(function=lambda x: K.expand_dims(x, axis=0))(bias)
+        expand = Flatten()(expand)
+        # added = Add()([net, expand])
+        added = Lambda(function=lambda t: t[0]+t[1])([net, expand])
+        result = Reshape(target_shape=(64, 64),
+                         name='FeatureTransformNet_Output')(added)
+
+        model = Model(inputs=[ipt, bias], outputs=[result])
+        print('Feature transform net:')
+        model.summary()
+        return model([ipts, bias]), bias
+
+    ipts = Input(shape=(points, 3), name='Classifier_Input')
+    biases = []
+
+    transform, bias = InputTransformNet(ipts)
+
+    biases.append(bias)
+
+    net = Lambda(function=lambda t: K.batch_dot(t[0], t[1]))([ipts, transform])
+    expand = Lambda(function=lambda x: K.expand_dims(x, axis=-1))(net)
+    net = SeparableConv2D(filters=64,
+                          kernel_size=(1, 3),
+                          activation='relu')(expand)
+    net = SeparableConv2D(filters=64,
+                          kernel_size=(1, 1),
+                          activation='relu')(net)
+    net = BatchNormalization(axis=-1)(net)
+
+    transform, bias = FeatureTransformNet(net)
+
+    biases.append(bias)
+
+    net = Lambda(function=lambda x: K.squeeze(x, axis=2))(net)
+    net = Lambda(function=lambda t: K.batch_dot(t[0], t[1]))([net, transform])
+    net = Lambda(function=lambda x: K.expand_dims(x, axis=2))(net)
+    net = SeparableConv2D(filters=128,
+                          kernel_size=(1, 1),
+                          activation='relu')(net)
+    net = SeparableConv2D(filters=1024,
+                          kernel_size=(1, 1),
+                          activation='relu')(net)
+    net = BatchNormalization(axis=-1)(net)
+
+    max_pool = MaxPool2D(pool_size=(net.shape.as_list()[1:3]))(net)
+
+    flat = Flatten()(max_pool)
+    net = Dense(units=512,
+                activation='relu')(flat)
+    drop = Dropout(rate=0.3)(net)
+    net = Dense(units=256,
+                activation='relu')(drop)
+    drop = Dropout(rate=0.3)(net)
+    is_real = Dense(units=1,
+                    activation='sigmoid',
+                    name='Classifier_Real')(net)
+    net = Dense(units=40,
+                activation='softmax',
+                name='Classifier_Class')(net)
+
+    model = Model(inputs=[ipts]+biases, outputs=[net, is_real])
+    print('Classifier model:')
+    model.summary()
+    return model, biases
+
+
 def Residual(points=1024):
     def InputTransformNet(ipts):
         '''ipts is a keras tensor'''
@@ -299,6 +425,147 @@ def Residual(points=1024):
     net = Conv2D(filters=1024,
                  kernel_size=(1, 1),
                  activation='relu')(net)
+    net = BatchNormalization(axis=-1)(net)
+
+    max_pool = MaxPool2D(pool_size=(net.shape.as_list()[1:3]))(net)
+
+    flat = Flatten()(max_pool)
+    flat = Add()([flat, dot_output])
+    flatten_output = Dense(units=256, activation='relu')(flat)
+    flatten_output = Dropout(rate=.2)(flatten_output)
+    net = Dense(units=512,
+                activation='relu')(flat)
+    drop = Dropout(rate=.3)(net)
+    net = Dense(units=256,
+                activation='relu')(drop)
+    net = Add()([flatten_output, net])
+    drop = Dropout(rate=.3)(net)
+    is_real = Dense(units=1,
+                    activation='sigmoid',
+                    name='Classifier_Real')(net)
+    net = Dense(units=40,
+                activation='softmax',
+                name='Classifier_Class')(net)
+
+    model = Model(inputs=[ipts]+biases, outputs=[net, is_real])
+    print('Classifier model:')
+    model.summary()
+    return model, biases
+
+
+def SeparableResidual(points=1024):
+    def InputTransformNet(ipts):
+        '''ipts is a keras tensor'''
+        ipt = Input(shape=(points, 3), name='InputTransformNet_Input')
+        expand = Lambda(function=lambda x: K.expand_dims(x, axis=-1))(ipt)
+        net = SeparableConv2D(filters=64,
+                              kernel_size=(1, 3),
+                              activation='relu')(expand)
+        net = SeparableConv2D(filters=128,
+                              kernel_size=(1, 1),
+                              activation='relu')(net)
+        net = SeparableConv2D(filters=1024,
+                              kernel_size=(1, 1),
+                              activation='relu')(net)
+
+        max_pool = MaxPool2D(pool_size=(points, 1))(net)
+
+        net = Flatten()(max_pool)
+        net = Dense(units=512, activation='relu')(net)
+        net = Dense(units=256, activation='relu')(net)
+        net = Dense(units=3*3)(net)
+
+        bias = Input(tensor=K.eye(3, dtype='float32'),
+                     name='InputTransformNet_Bias')
+
+        expand = Lambda(function=lambda x: K.expand_dims(x, axis=0))(bias)
+        expand = Flatten()(expand)
+        # added = Add()([net, expand])
+        added = Lambda(function=lambda t: t[0]+t[1])([net, expand])
+        result = Reshape(target_shape=(
+            3, 3), name='InputTransformNet_Output')(added)
+
+        model = Model(inputs=[ipt, bias], outputs=[result])
+        print('Input transform net:')
+        model.summary()
+        return model([ipts, bias]), bias
+
+    def FeatureTransformNet(ipts):
+        '''ipts is a keras tensor'''
+        ipt = Input(shape=(points, 1, 64), name='FeatureTransformNet_Input')
+        net = SeparableConv2D(filters=64,
+                              kernel_size=(1, 1),
+                              activation='relu')(ipt)
+        net = SeparableConv2D(filters=128,
+                              kernel_size=(1, 1),
+                              activation='relu')(net)
+        net = SeparableConv2D(filters=1024,
+                              kernel_size=(1, 1),
+                              activation='relu')(net)
+
+        max_pool = MaxPool2D(pool_size=(points, 1))(net)
+
+        net = Flatten()(max_pool)
+        net = Dense(units=512, activation='relu')(net)
+        net = Dense(units=256, activation='relu')(net)
+        net = Dense(units=64*64)(net)
+
+        bias = Input(tensor=K.eye(64, dtype='float32'),
+                     name='FeatureTransformNet_Bias')
+
+        expand = Lambda(function=lambda x: K.expand_dims(x, axis=0))(bias)
+        expand = Flatten()(expand)
+        # added = Add()([net, expand])
+        added = Lambda(function=lambda t: t[0]+t[1])([net, expand])
+        result = Reshape(target_shape=(64, 64),
+                         name='FeatureTransformNet_Output')(added)
+
+        model = Model(inputs=[ipt, bias], outputs=[result])
+        print('Feature transform net:')
+        model.summary()
+        return model([ipts, bias]), bias
+
+    ipts = Input(shape=(points, 3), name='Classifier_Input')
+    biases = []
+
+    transform, bias = InputTransformNet(ipts)
+
+    biases.append(bias)
+
+    dot_output = Lambda(function=lambda t: K.batch_dot(
+        t[0], t[1]))([ipts, transform])
+    expand = Lambda(function=lambda x: K.expand_dims(x, axis=-1))(dot_output)
+    dot_output = Dense(units=64, activation='relu')(dot_output)
+    dot_output = Dropout(rate=.2)(dot_output)
+    net = SeparableConv2D(filters=64,
+                          kernel_size=(1, 3),
+                          activation='relu')(expand)
+    net = SeparableConv2D(filters=64,
+                          kernel_size=(1, 1),
+                          activation='relu')(net)
+    dot_output = Lambda(
+        function=lambda x: K.expand_dims(x, axis=2))(dot_output)
+    net = Add()([net, dot_output])
+    net = BatchNormalization(axis=-1)(net)
+
+    transform, bias = FeatureTransformNet(net)
+
+    biases.append(bias)
+
+    net = Lambda(function=lambda x: K.squeeze(x, axis=2))(net)
+    dot_output = Lambda(function=lambda t: K.batch_dot(
+        t[0], t[1]))([net, transform])
+    net = Lambda(function=lambda x: K.expand_dims(x, axis=2))(dot_output)
+    dot_output = Flatten()(
+        Dense(units=1, activation='relu')(dot_output)
+    )
+    dot_output = Dropout(rate=.2)(dot_output)
+    net = SeparableConv2D(filters=128,
+                          kernel_size=(1, 1),
+                          activation='relu')(net)
+    net = SeparableConv2D(filters=1024,
+                          kernel_size=(1, 1),
+                          activation='relu')(net)
     net = BatchNormalization(axis=-1)(net)
 
     max_pool = MaxPool2D(pool_size=(net.shape.as_list()[1:3]))(net)

@@ -39,8 +39,11 @@ rotation.add_argument('--rotate_val', action='store_true',
                       help='apply rotation to validation data')
 rotation.add_argument('--per_rotation', type=int, default=5,
                       help='how many epochs per rotation')
-parser.add_argument('--residual', action='store_true',
-                    help='whether to use the residual network')
+advanced = parser.add_argument_group('advanced')
+advanced.add_argument('--residual', action='store_true',
+                      help='whether to use the residual network')
+advanced.add_argument('--separable', action='store_true',
+                      help='replace `Conv2D` with `SeparableConv2D`')
 parser.add_argument('--cuda', type=str, default='0',
                     help='configure which cuda device to use')
 
@@ -63,9 +66,15 @@ if not os.path.exists('weights'):
     rotate_val=args.rotate_val)
 
 if args.residual:
-    model, _ = models.Residual(points=args.points)
+    if args.separable:
+        model, _ = models.SeparableResidual(points=args.points)
+    else:
+        model, _ = models.Residual(points=args.points)
 else:
-    model, _ = models.Classifier(points=args.points)
+    if args.separable:
+        model, _ = models.SeparableClassifier(points=args.points)
+    else:
+        model, _ = models.Classifier(points=args.points)
 
 classifier = Model(inputs=model.inputs,
                    outputs=[model.outputs[0]])
