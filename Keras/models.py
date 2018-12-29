@@ -306,7 +306,7 @@ def Residual(points=1024):
     flat = Flatten()(max_pool)
     flat = Add()([flat, dot_output])
     flatten_output = Dense(units=256, activation='relu')(flat)
-    flatten_output = Dropout(rate=.3)(flatten_output)
+    flatten_output = Dropout(rate=.2)(flatten_output)
     net = Dense(units=512,
                 activation='relu')(flat)
     drop = Dropout(rate=.3)(net)

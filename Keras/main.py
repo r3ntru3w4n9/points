@@ -5,6 +5,8 @@ import keras
 import keras.backend as K
 import matplotlib.pyplot as plt
 import numpy as np
+import tensorflow as tf
+from keras.backend.tensorflow_backend import set_session
 from keras.layers import *
 from keras.models import *
 from keras.utils import to_categorical
@@ -32,14 +34,24 @@ parser.add_argument('--save_history', action='store_true',
                     help='save history dictionary')
 rotation = parser.add_argument_group('rotation')
 rotation.add_argument('--rotate', action='store_true',
-                        help='apply rotation to data')
+                      help='apply rotation to data')
 rotation.add_argument('--rotate_val', action='store_true',
-                        help='apply rotation to validation data')
+                      help='apply rotation to validation data')
 rotation.add_argument('--per_rotation', type=int, default=5,
-                        help='how many epochs per rotation')
-parser.add_argument('--residual', action='store_true')
+                      help='how many epochs per rotation')
+parser.add_argument('--residual', action='store_true',
+                    help='whether to use the residual network')
+parser.add_argument('--cuda', type=str, default='0',
+                    help='configure which cuda device to use')
 
 args = parser.parse_args()
+
+
+# setting GPU usage
+config = tf.ConfigProto()
+config.gpu_options.per_process_gpu_memory_fraction = 0.3
+config.gpu_options.visible_device_list = args.cuda
+set_session(tf.Session(config=config))
 
 if not os.path.exists('weights'):
     os.makedirs('weights')
@@ -57,10 +69,10 @@ else:
     model, _ = models.Classifier(points=args.points)
 
 classifier = Model(inputs=model.inputs,
-                    outputs=[model.outputs[0]])
+                   outputs=[model.outputs[0]])
 
 classifier.compile(optimizer='adam', loss=[
-                    'sparse_categorical_crossentropy'], metrics=['accuracy'])
+    'sparse_categorical_crossentropy'], metrics=['accuracy'])
 
 del model
 
@@ -83,28 +95,28 @@ if args.rotate:
             rotate_val=args.rotate_val)
         print('epoch: {}/{}'.format(epoch, args.epochs))
         classifier.fit(x=data,
-                        y=label,
-                        batch_size=args.batch_size,
-                        epochs=args.per_rotation,
-                        validation_data=(test_data, test_label))
+                       y=label,
+                       batch_size=args.batch_size,
+                       epochs=args.per_rotation,
+                       validation_data=(test_data, test_label))
 elif args.rotate_val:
     for epoch in range(1, args.epochs+1):
         (x_test, y_test) = loader.rotate_data(args.test_files)
         print('epoch: {}/{}'.format(epoch, args.epochs))
         classifier.fit(x=data,
-                        y=label,
-                        batch_size=args.batch_size,
-                        epochs=args.per_rotation,
-                        validation_data=(test_data, test_label))
+                       y=label,
+                       batch_size=args.batch_size,
+                       epochs=args.per_rotation,
+                       validation_data=(test_data, test_label))
 else:
     loss = classifier.fit(x=data,
-                            y=label,
-                            batch_size=args.batch_size,
-                            epochs=args.epochs,
-                            callbacks=[ModelCheckPoint,
-                                        TensorBoard,
-                                        EarlyStopping],
-                            validation_data=(test_data, test_label))
+                          y=label,
+                          batch_size=args.batch_size,
+                          epochs=args.epochs,
+                          callbacks=[ModelCheckPoint,
+                                     TensorBoard,
+                                     EarlyStopping],
+                          validation_data=(test_data, test_label))
 
 if args.save_history:
     np.save(file='./history', arr=loss.history)
