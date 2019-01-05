@@ -44,9 +44,10 @@ advanced.add_argument('--residual', action='store_true',
                       help='whether to use the residual network')
 advanced.add_argument('--separable', action='store_true',
                       help='replace `Conv2D` with `SeparableConv2D`')
+advanced.add_argument('--ensemble', action='store_true',
+                      help='a cluster of predictive models')
 parser.add_argument('--cuda', type=str, default='0',
                     help='configure which cuda device to use')
-
 args = parser.parse_args()
 
 
@@ -141,8 +142,8 @@ if args.plot:
 (loss, acc) = classifier.evaluate(x=x_train, y=y_train)
 print()
 print('training loss: {}, training accuracy: {}'.format(loss, acc))
-print()
 (loss, acc) = classifier.evaluate(x=x_test, y=y_test)
+print()
 print('testing loss: {}, testing accuracy: {}'.format(loss, acc))
 
 K.clear_session()
