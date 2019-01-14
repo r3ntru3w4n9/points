@@ -142,3 +142,12 @@ class Classifier(nn.Module):
         pool_output = F.max_pool2d(layer_output,
                                    kernel_size=(layer_output.shape[2], 1)).view(-1, 1024)
         return self.linear_block(pool_output)
+
+if __name__ == "__main__":
+    import random
+    model = Classifier()
+    for i in range(10):
+        rand = random.randint(1,2048)
+        print(rand)
+        inputs = torch.randn(rand,int(2048/rand),3)
+        print(model(inputs).shape)

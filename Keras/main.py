@@ -13,7 +13,6 @@ from keras.utils import to_categorical
 
 import loader
 import models
-import provider
 
 parser = argparse.ArgumentParser()
 parser.add_argument('epochs', type=int, default=300,
