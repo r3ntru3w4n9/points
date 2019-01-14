@@ -2,8 +2,6 @@ import argparse
 import os
 
 import torch
-from ignite.engine import Engine, Events
-from ignite.handlers import EarlyStopping, ModelCheckpoint
 from torch import nn, optim
 from torch.utils.data import DataLoader, Dataset
 
@@ -39,7 +37,7 @@ class PointCloud(Dataset):
     def __init__(self, train, label):
         super().__init__()
         self._train = torch.tensor(train, device=device)
-        self._label = torch.tensor(label, device=device)
+        self._label = torch.tensor(label.squeeze(-1), device=device)
         assert len(self._train) == len(self._label)
 
     def __len__(self):
@@ -68,7 +66,7 @@ classifier = models.Classifier.to(device)
 
 loss_fn = nn.CrossEntropyLoss()
 
-optimizer = optim.Adam(classifier.parameters())
+optimizer = optim.Adam(classifier.parameters(), args.lr)
 
 train_dataset = PointCloud(data, label)
 test_dataset = PointCloud(test_data, test_label)
@@ -80,22 +78,30 @@ test_loader = DataLoader(test_dataset,
                          shuffle=False)
 
 
-def step(engine, batch):
-    pass
+for epoch in range(1, args.epochs+1):
 
+    classifier.train()
+    for batch in train_loader:
+        (data, label) = batch
+        output = classifier(data)
+        loss = loss_fn(output, label)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
-engine = Engine(step)
+    classifier.eval()
+    loss = torch.tensor(0., device=device)
+    acc = torch.tensor(0., device=device)
+    with torch.no_grad():
+        for batch in test_loader:
+            (data, label) = batch
+            output = classifier(data)
+            loss += loss_fn(output, label)
+            acc += (output.argmax(-1) == label).sum()
+        loss = loss/len(test_dataset)
+        acc = acc/len(test_dataset)
+    print('loss: {}'.format(loss.item()))
+    print('acc: {}'.format(acc.item()))
 
-modelcheckpoint = ModelCheckpoint(dirname=weight_dir,
-                                  filename_prefix='pointnet-classifier')
-engine.add_event_handler(Events.EPOCH_COMPLETED, modelcheckpoint)
-
-
-def acc(engine):
-    pass
-
-
-earlystopping = EarlyStopping(patience=10,
-                              score_function=acc,
-                              trainer=engine)
-engine.add_event_handler(Events.EPOCH_COMPLETED, earlystopping)
+torch.save(obj=classifier.state_dict(),
+           f=os.path.join(weight_dir, 'classifier.pth'))
