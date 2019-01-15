@@ -2,6 +2,9 @@ import argparse
 import os
 
 import torch
+from ignite.contrib.handlers import ProgressBar
+from ignite.engine import Engine, Events
+from ignite.handlers import EarlyStopping, ModelCheckpoint
 from torch import nn, optim
 from torch.utils.data import DataLoader, Dataset
 
@@ -30,6 +33,7 @@ rotation.add_argument('--per_rotation', type=int, default=5,
                       help='how many epochs per rotation')
 parser.add_argument('--cuda', type=str, default='0',
                     help='configure which cuda device to use')
+parser.add_argument('--ignite', action='store_true')
 args = parser.parse_args()
 
 
@@ -77,31 +81,35 @@ test_loader = DataLoader(test_dataset,
                          batch_size=args.batch_size,
                          shuffle=False)
 
+if args.ignite:
+    def step(engine,batch):
+        pass
+    engine = Engine(step)
+else:
+    for epoch in range(1, args.epochs+1):
 
-for epoch in range(1, args.epochs+1):
-
-    classifier.train()
-    for batch in train_loader:
-        (data, label) = batch
-        output = classifier(data)
-        loss = loss_fn(output, label)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-    classifier.eval()
-    loss = torch.tensor(0., device=device)
-    acc = torch.tensor(0., device=device)
-    with torch.no_grad():
-        for batch in test_loader:
+        classifier.train()
+        for batch in train_loader:
             (data, label) = batch
             output = classifier(data)
-            loss += loss_fn(output, label)
-            acc += (output.argmax(-1) == label).sum()
-        loss = loss/len(test_dataset)
-        acc = acc/len(test_dataset)
-    print('loss: {}'.format(loss.item()))
-    print('acc: {}'.format(acc.item()))
+            loss = loss_fn(output, label)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-torch.save(obj=classifier.state_dict(),
-           f=os.path.join(weight_dir, 'classifier.pth'))
+        classifier.eval()
+        loss = torch.tensor(0., device=device)
+        acc = torch.tensor(0., device=device)
+        with torch.no_grad():
+            for batch in test_loader:
+                (data, label) = batch
+                output = classifier(data)
+                loss += loss_fn(output, label)
+                acc += (output.argmax(-1) == label).sum()
+            loss = loss/len(test_dataset)
+            acc = acc/len(test_dataset)
+        print('loss: {}'.format(loss.item()))
+        print('acc: {}'.format(acc.item()))
+
+    torch.save(obj=classifier.state_dict(),
+               f=os.path.join(weight_dir, 'classifier.pth'))
