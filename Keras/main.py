@@ -47,6 +47,8 @@ advanced.add_argument('--ensemble', action='store_true',
                       help='a cluster of predictive models')
 parser.add_argument('--cuda', type=str, default='0',
                     help='configure which cuda device to use')
+parser.add_argument('--optim', type=str, default='adam',
+                    help='configure which optimizer algorithm to use')
 args = parser.parse_args()
 
 
@@ -79,7 +81,7 @@ else:
 classifier = Model(inputs=model.inputs,
                    outputs=[model.outputs[0]])
 
-classifier.compile(optimizer='adam', loss=[
+classifier.compile(optimizer=args.optim, loss=[
     'sparse_categorical_crossentropy'], metrics=['accuracy'])
 
 del model
